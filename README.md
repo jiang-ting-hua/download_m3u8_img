@@ -25,4 +25,4 @@ dmi.exe -c 30 -m https://www.mmicloud.com:65/20191204/I2jpA2LP/index.m3u8
 
 下载图片
 
-dmi.exe -i https://www.tooopen.com/img/87.aspx
+dmi.exe -i https://www.abc.com/
