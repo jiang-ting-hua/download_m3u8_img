@@ -136,20 +136,24 @@ func DownloadImgGo() {
 	}
 	waitGroup.Done()
 }
-func getUrlNext(upper []string) (current []string) {
+func getUrlNext(url string, upper []string) (current []string) {
 	if MaxLayer == 0 {
 		return nil
 	}
 	if len(upper) == 0 {
 		return nil
 	}
+	host := getHost(url)
 	for _, v := range upper {
 		fmt.Println("init url: ", v)
 		link := getUrlLink(v)
 		if len(link) == 0 {
-			return
+			return nil
 		}
 		for _, v := range link {
+			if v == url || v == host || v == host+`\` {
+				continue
+			}
 			if isContains(linkUrls, v) == false {
 				linkUrls = append(linkUrls, v)
 				current = append(current, v)
@@ -157,7 +161,7 @@ func getUrlNext(upper []string) (current []string) {
 		}
 	}
 	MaxLayer--
-	return getUrlNext(current)
+	return getUrlNext(url, current)
 }
 
 //得到所要下载图片的页面.
@@ -166,7 +170,7 @@ func getUrlAll(url string) {
 	linkUrls = append(linkUrls, url)
 	//添加第二层的链接.
 	//current2 := getUrlNext(linkUrls)
-	getUrlNext(linkUrls)
+	getUrlNext(url, linkUrls)
 
 	////添加第三层的链接
 	//if len(current2) == 0 {
@@ -397,7 +401,7 @@ func buildUrl(tag string, masterUrl string, value []string) (url []string) {
 			if isUrl == false {
 				continue
 			}
-				t = s
+			t = s
 		}
 		//img链接,根据情况添加链接的头.
 		if strings.Contains(t, "http") || strings.Contains(t, "HTTP") {

@@ -66,7 +66,6 @@ func getUrl(url string) (io.ReadCloser, error) {
 
 //根据url得到主域名
 func getHost(url string) (host string) {
-	//"http://www.chinanews.com/photo/more/1.html"
 	i := strings.LastIndex(url, `//`)
 	if i == -1 {
 		host = ""
