@@ -62,16 +62,17 @@ func DownloadImg(url string) {
 
 	//初始化所有网址到管道
 	initUrlChan()
-	//并发下载所有网址的图片链接
+	//并发初始化所有网址的图片链接
 	for i := 0; i < maxGo; i++ {
 		imgWG.Add(1)
 		go getUrlImgGo()
 	}
 	imgWG.Wait()
+
 	//初始化管道
 	initImgChan()
 
-	//二.开始并发下载img文件,并发默认设为15,可以命令行调整.
+	//二.开始并发下载img文件.
 	fmt.Println("Start dowload img file.")
 	for i := 0; i < maxGo; i++ {
 		waitGroup.Add(1)
@@ -104,7 +105,7 @@ func DownloadImgGo() {
 		if err != nil {
 			img.isDownload = false
 			imgFailed <- img
-			//fmt.Println("getUrlResp():", err)
+			fmt.Println("getUrlResp():", err)
 			continue
 		}
 		defer resp.Body.Close()
@@ -112,7 +113,7 @@ func DownloadImgGo() {
 		if err != nil {
 			img.isDownload = false
 			imgFailed <- img
-			//fmt.Println("ioutil.ReadAll():", err)
+			fmt.Println("ioutil.ReadAll():", err)
 			continue
 		}
 
@@ -127,7 +128,7 @@ func DownloadImgGo() {
 		if err != nil {
 			img.isDownload = false
 			imgFailed <- img
-			//fmt.Println("ioutil.WriteFile():", err)
+			fmt.Println("ioutil.WriteFile():", err)
 			continue
 		}
 		img.isDownload = true
@@ -168,15 +169,9 @@ func getUrlNext(url string, upper []string) (current []string) {
 func getUrlAll(url string) {
 	//添加第一层链接
 	linkUrls = append(linkUrls, url)
-	//添加第二层的链接.
+	//添加第二层的链接.及设定的层数
 	//current2 := getUrlNext(linkUrls)
 	getUrlNext(url, linkUrls)
-
-	////添加第三层的链接
-	//if len(current2) == 0 {
-	//	return
-	//}
-	//getUrlNext(current2)
 }
 func initUrlChan() {
 	urlChan = make(chan string, len(linkUrls))
@@ -187,7 +182,7 @@ func initUrlChan() {
 }
 
 //根据正则取得的数据,进行筛选图片Url.
-func buildImg(value [][]string) (imgs []string) {
+func getImgLink(value [][]string) (imgs []string) {
 	if len(value) == 0 {
 		return
 	}
@@ -196,11 +191,6 @@ func buildImg(value [][]string) (imgs []string) {
 
 	for i := 0; i < len(value); i++ {
 		t := value[i][1]
-		isUrl, _ := isUrlSuffix(t)
-		if isUrl == true {
-			continue
-		}
-
 		if strings.Contains(t, s1) {
 			i := strings.Index(t, s1)
 			t = t[i+len(s1):]
@@ -245,7 +235,7 @@ func getUrlImgGo() {
 	}()
 
 	for url := range urlChan {
-		Resp, err := getUrlResp(url)
+		Resp, err := getUrlResp2(url)
 		if err != nil {
 			//err = fmt.Errorf("getUrl():", err)
 			continue
@@ -263,7 +253,7 @@ func getUrlImgGo() {
 		htmlText = strings.ReplaceAll(htmlText, ">", ">\r\n")
 		//根据reImg = `<img[\s\S]+?>` 正则提取数据
 		value := GetValueFromHtml(reImg, htmlText)
-		imgs := buildImg(value)
+		imgs := getImgLink(value)
 		urls := buildUrl("img", url, imgs)
 		for _, v := range urls {
 			if strings.Index(v, ".js") > 0 {
@@ -283,7 +273,6 @@ func getUrlImgGo() {
 			fileName := DowloadImgPath + GetRandomName() + suffix
 
 			img := imgInfo{
-				//index:      imgNum,
 				imgUrl:     v,
 				fileName:   fileName,
 				suffix:     suffix,
@@ -314,14 +303,40 @@ func initImgChan() {
 
 //获取url的源码,返回*http.Response
 func getUrlResp(url string) (resp *http.Response, err error) {
+	//client := &http.Client{
+	//	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+	//		return http.ErrUseLastResponse
+	//	},
+	//	Timeout: 30 * time.Second,
+	//}
+
 	client := http.Client{
 		Timeout: 30 * time.Second,
 	}
 	resp, err = client.Get(url)
+	//if err == nil && resp.StatusCode == 302 {
+	//	return nil, fmt.Errorf("http get error,\n %s", err)
+	//	//fmt.Println("got redirect :",url)
+	//} else {
+	//	return nil, fmt.Errorf("http get error,\n %s", err)
+	//}
+
 	if err != nil {
 		return nil, fmt.Errorf("http get error,\n %s", err)
 	}
 	return resp, err
+}
+func getUrlResp2(url string) (resp *http.Response, err error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("http.NewRequest() error,\n %s", err)
+	}
+	req.Header.Set("Connection", "close")
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("http get error,\n %s", err)
+	}
+	return resp, nil
 }
 
 //判断是否有重复URL
