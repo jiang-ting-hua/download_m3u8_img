@@ -42,6 +42,7 @@ type imgInfo struct {
 	imgUrl     string //图片文件的URL下载地址.
 	fileName   string //图片文件名
 	suffix     string //文件后缀
+	referer	   string //引用页
 	isDownload bool   //是否下载成功
 }
 
@@ -101,21 +102,30 @@ func DownloadImgGo() {
 			continue
 		}
 		start := time.Now()
-		resp, err := getUrlResp(img.imgUrl)
+
+		//resp, err := getUrlResp(img.imgUrl)
+		//if err != nil {
+		//	img.isDownload = false
+		//	imgFailed <- img
+		//	fmt.Println("getUrlResp():", err)
+		//	continue
+		//}
+		//defer resp.Body.Close()
+		//imgBytes, err := ioutil.ReadAll(resp.Body)
+		//if err != nil {
+		//	img.isDownload = false
+		//	imgFailed <- img
+		//	fmt.Println("ioutil.ReadAll():", err)
+		//	continue
+		//}
+
+		//host := getHost(imgUrl)
+		imgBytes, err := getUrlBody(img.imgUrl, img.referer)
 		if err != nil {
-			img.isDownload = false
-			imgFailed <- img
-			fmt.Println("getUrlResp():", err)
+			fmt.Println("getUrlBody() failded:", err)
 			continue
 		}
-		defer resp.Body.Close()
-		imgBytes, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			img.isDownload = false
-			imgFailed <- img
-			fmt.Println("ioutil.ReadAll():", err)
-			continue
-		}
+
 
 		if len(imgBytes) < imgSize {
 			img.isDownload = true
@@ -240,12 +250,13 @@ func getUrlImgGo() {
 			//err = fmt.Errorf("getUrl():", err)
 			continue
 		}
-		defer Resp.Body.Close()
+		//defer Resp.Body.Close()
 		bytes, err := ioutil.ReadAll(Resp.Body)
 		if err != nil {
 			//err = fmt.Errorf("ioutil.ReadAll():", err)
 			continue
 		}
+		Resp.Body.Close()
 		htmlText := string(bytes)
 
 		//如果没有换行,就增中换行
@@ -276,6 +287,7 @@ func getUrlImgGo() {
 				imgUrl:     v,
 				fileName:   fileName,
 				suffix:     suffix,
+				referer:    url,
 				isDownload: false,
 			}
 			linkImgs.Store(v, &img)
@@ -303,13 +315,6 @@ func initImgChan() {
 
 //获取url的源码,返回*http.Response
 func getUrlResp(url string) (resp *http.Response, err error) {
-	//client := &http.Client{
-	//	CheckRedirect: func(req *http.Request, via []*http.Request) error {
-	//		return http.ErrUseLastResponse
-	//	},
-	//	Timeout: 30 * time.Second,
-	//}
-
 	client := http.Client{
 		Timeout: 30 * time.Second,
 	}
@@ -530,17 +535,22 @@ func tryFailedImg() {
 				continue
 			}
 			start := time.Now()
-			resp, err := getUrlResp(img.imgUrl)
+			//resp, err := getUrlResp(img.imgUrl)
+			//if err != nil {
+			//	Tryimg[n].isDownload = false
+			//	//fmt.Println("getUrlResp():", err)
+			//	continue
+			//}
+			//defer resp.Body.Close()
+			//imgBytes, err := ioutil.ReadAll(resp.Body)
+			//if err != nil {
+			//	Tryimg[n].isDownload = false
+			//	//fmt.Println("ioutil.ReadAll():", err)
+			//	continue
+			//}
+			imgBytes, err := getUrlBody(img.imgUrl, img.referer)
 			if err != nil {
-				Tryimg[n].isDownload = false
-				//fmt.Println("getUrlResp():", err)
-				continue
-			}
-			defer resp.Body.Close()
-			imgBytes, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				Tryimg[n].isDownload = false
-				//fmt.Println("ioutil.ReadAll():", err)
+				fmt.Println("getUrlBody() failded:", err)
 				continue
 			}
 

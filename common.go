@@ -2,8 +2,11 @@ package main
 
 import (
 	"bytes"
+	"compress/flate"
+	"compress/gzip"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,16 +26,79 @@ import (
 
 var (
 	mutex sync.Mutex //互斥锁
+	tryUrl =2 //请求失败,再重试几次
 )
+func getUrlBody(url string,refererUrl string) ([]byte, error) {
+	transport := &http.Transport{
+		DisableCompression:  true,    //关闭压缩
+		TLSHandshakeTimeout: 30 * time.Second,  //超时
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},  //跳过验证.
+	}
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   120 * time.Second,
+	}
+	var body io.Reader
+	req, err := http.NewRequest("GET", url, body)
+	if err != nil {
+		return nil, err
+	}
+	var header = map[string]string{
+		"Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+		"Accept-Charset":  "UTF-8,*;q=0.5",
+		"Accept-Encoding": "gzip,deflate,sdch",
+		"Accept-Language": "en-US,en;q=0.8",
+		"User-Agent":      "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36",
+	}
+	for k, v := range header {
+		req.Header.Set(k, v)
+	}
+	req.Header.Set("Referer", refererUrl)
+	var (
+		res          *http.Response
+		requestError error
+	)
+	for i := 0; ; i++ {
+		res, requestError = client.Do(req)
+		if requestError == nil && res.StatusCode < 400 {
+			break
+		} else if i+1 >= tryUrl { //请求失败,再请求一次.
+			var err error
+			if requestError != nil {
+				err = fmt.Errorf("request error: %v", requestError)
+			} else {
+				err = fmt.Errorf("%s request error: HTTP %d", url, res.StatusCode)
+			}
+			return nil, err
+		}
+		time.Sleep(1 * time.Second)
+	}
+	defer res.Body.Close()
+	var reader io.ReadCloser
+	switch res.Header.Get("Content-Encoding") {
+	case "gzip":
+		reader, _ = gzip.NewReader(res.Body)
+	case "deflate":
+		reader = flate.NewReader(res.Body)
+	default:
+		reader = res.Body
+	}
+	bodyData, err := ioutil.ReadAll(reader)
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+	reader.Close()
+	//data:=string(bodyData)
+	return bodyData, nil
+}
+
 func  get_html(url string) string {
 	header := map[string]string{
-		"Host": "movie.douban.com",
 		"Connection": "keep-alive",
 		"Cache-Control": "max-age=0",
 		"Upgrade-Insecure-Requests": "1",
 		"User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36",
 		"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-		"Referer": "https://movie.douban.com/top250",
 	}
 
 	client := &http.Client{}
