@@ -198,7 +198,29 @@ func mkdir(dir string) (err error) {
 	}
 	return nil
 }
+//获取目录下的所有文件
+func GetAllfiles(dirPath string,files []string)([]string,error){
+	infos, err := ioutil.ReadDir(dirPath)
+	if err!=nil{
+		return files,errors.New("read file dir failed.")
+	}
+	fullDir:=dirPath
+	if runtime.GOOS == "windows" {
+		fullDir = fullDir+"\\"
+	}else{
+		fullDir = fullDir+"/"
+	}
 
+	for _,f:=range infos{
+		fullDir:=fullDir+f.Name()
+		if f.IsDir(){
+			files,_=GetAllfiles(fullDir,files)
+		}else{
+			files=append(files,fullDir)
+		}
+	}
+	return files,nil
+}
 //AES128解密
 func DecryptAES128(data, key []byte) ([]byte, error) {
 	if len(key) < 1 {
@@ -230,7 +252,7 @@ func PKCS7UnPadding(data []byte) []byte {
 	return data[:length-unpadding]
 }
 
-//转换字符编码
+//转换字符编码,ConvertToString(src, "GBK", "UTF-8") GB18030 ,HZGB2312,GBK,UTF-8
 func ConvertToString(src string, srcCode string, tagCode string) string {
 	srcCoder := mahonia.NewDecoder(srcCode)
 	srcResult := srcCoder.ConvertString(src)
