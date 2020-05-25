@@ -1,4 +1,8 @@
 ### 一,根据URL的m3u8索引,下载视频文件.
+    增加二种UI图形界面在这二个地址:
+    https://github.com/jiang-ting-hua/example/tree/master/durl2  这种是HTML的图型界面 github.com/sciter-sdk/go-sciter
+    https://github.com/jiang-ting-hua/example/tree/master/durl3  这种是利用 github.com/andlabs/ui 的图形界面
+
 ### 二,下载网页中的图片.
 
 为了家里小朋友,要下载一个视频,放在电视上看. 所以利用一点时间,写了这个简单下载程序.如果视频有加密,会对其解密.
